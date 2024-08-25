@@ -10,36 +10,60 @@
 # include <sys/time.h>
 #include <mutex>
 
+class Printer
+{
+public:
+     Printer()
+     {
+          print_mutex_ = std::make_shared<std::mutex>();
+     }
+
+     void print( const std::string& message )
+     {
+          std::lock_guard<std::mutex> lk( *print_mutex_ );
+          std::cout << print_mutex_.get() << " address " << print_mutex_.use_count()
+          << " use_count " << "| Message: " << message << std::endl;
+          std::this_thread::sleep_for( std::chrono::seconds( 5 ) );
+     }
+
+private:
+     std::shared_ptr<std::mutex> print_mutex_;
+};
+
 class A
 {
 public:
-     A( const int& id, const std::shared_ptr<std::mutex>& fork ) : id_( id ), fork_( fork )
+     // A( const int& id, const Printer& printer ) : id_( id ), fork_( fork )
+     A( const int& id, const Printer& printer ) : id_( id ), printer_( printer )
      {
           // std::mutex muta = fork_.get();
-          std::cout << "Id: " << id_ << "address: " <<  fork_.get() << std::endl;
+          // std::cout << "Id: " << id_ << "address: " <<  fork_.get() << std::endl;
      }
 
      void bringTheAction()
      {
-          for ( ; ; )
-          {
-               std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
-               std::lock_guard<std::mutex> lk( *fork_ );
-               std::cout << "Id: " << id_ << " took ownership" << std::endl;
-               std::this_thread::sleep_for( std::chrono::seconds( 5 ) );
-          }
+          // for ( ; ; )
+          // {
+          //      std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
+          //      // std::lock_guard<std::mutex> lk( *fork_ );
+          //      std::cout << "Id: " << id_ << " took ownership" << std::endl;
+          //      std::this_thread::sleep_for( std::chrono::seconds( 5 ) );
+          // }
+          printer_.print( "id: " + std::to_string( id_ ) + " message: wassup" );
      }
 
 private:
-     std::shared_ptr<std::mutex>   fork_;
+     // std::shared_ptr<std::mutex>   fork_;
+     Printer                       printer_;
      int                           id_;
 };
 
 int main( int argc, char** argv )
 {
-     std::shared_ptr<std::mutex> muta = std::make_shared<std::mutex>();
-     A a1( 1, muta );
-     A a2( 2, muta );
+     // std::shared_ptr<std::mutex> muta = std::make_shared<std::mutex>();
+     Printer printer;
+     A a1( 1, printer );
+     A a2( 2, printer );
 
      std::thread t1( &A::bringTheAction, &a1 );
      std::thread t2( &A::bringTheAction, &a2 );
