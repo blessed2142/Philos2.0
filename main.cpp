@@ -4,11 +4,15 @@
 #include <ratio>
 #include <chrono>
 #include <unistd.h>
-# include <stdio.h>
-# include <stdlib.h>
-# include <sys/wait.h>
-# include <sys/time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <sys/time.h>
 #include <mutex>
+#include <condition_variable>
+#include <vector>
+#include <atomic>
+#include <csignal>
 
 class Printer
 {
@@ -33,117 +37,48 @@ private:
 class A
 {
 public:
-     // A( const int& id, const Printer& printer ) : id_( id ), fork_( fork )
-     A( const int& id, const Printer& printer ) : id_( id ), printer_( printer )
+     A()
      {
-          // std::mutex muta = fork_.get();
-          // std::cout << "Id: " << id_ << "address: " <<  fork_.get() << std::endl;
+          struct sigaction action;
+          action.sa_handler = A::signal_handler;
+          sigemptyset(&action.sa_mask);
+          action.sa_flags = 0;
+          sigaction(SIGINT, &action, NULL);
      }
 
-     void bringTheAction()
+     void Worker()
      {
-          // for ( ; ; )
-          // {
-          //      std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
-          //      // std::lock_guard<std::mutex> lk( *fork_ );
-          //      std::cout << "Id: " << id_ << " took ownership" << std::endl;
-          //      std::this_thread::sleep_for( std::chrono::seconds( 5 ) );
-          // }
-          printer_.print( "id: " + std::to_string( id_ ) + " message: wassup" );
+          while( !do_shutdown_ && !shutdown_requested_.load() )
+          {
+            std::cout << "doing work...\n";
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+          }
      }
 
+     static volatile sig_atomic_t do_shutdown_;
+     static std::atomic<bool> shutdown_requested_;
 private:
-     // std::shared_ptr<std::mutex>   fork_;
-     Printer                       printer_;
-     int                           id_;
+     static void signal_handler(int)
+     {
+          do_shutdown_ = 1;
+          shutdown_requested_ = true;
+
+          const char str[] = "received signal\n";
+          // ok, write is signal-safe
+          write(STDERR_FILENO, str, sizeof(str) - 1);
+     }
 };
+
+volatile sig_atomic_t A::do_shutdown_ = 0;
+std::atomic<bool> A::shutdown_requested_ = false;
+
 
 int main( int argc, char** argv )
 {
-     // std::shared_ptr<std::mutex> muta = std::make_shared<std::mutex>();
-     Printer printer;
-     A a1( 1, printer );
-     A a2( 2, printer );
+     A a;
+     a.Worker();
 
-     std::thread t1( &A::bringTheAction, &a1 );
-     std::thread t2( &A::bringTheAction, &a2 );
-
-     t1.join();
-     t2.join();
-
-
-
-
-     // OptionParser opt_parser( argc, argv );
-     // try
-     // {
-     //      opt_parser.init();
-     // }
-     // catch( const std::exception& e )
-     // {
-     //      std::cout << "Exception occurred during arg parse: " << e.what() << std::endl;
-     //      return 1;
-     // }
+     std::cout << "Getting down" << std::endl;
 
      return 0;
 }
-
-// class A
-// {
-// public:
-//      A( int& i ) : i_( i )
-//      {
-
-//      }
-//      void doWork( bool& flag )
-//      {
-//           i_ = 1488;
-//           flag = true;
-//      }
-// private:
-//      int& i_;
-// };
-
-// int main( int argc, char** argv )
-// {
-//      int i = 0;
-//      bool flag = false;
-//      A a( i );
-//      std::thread t( &A::doWork, &a, std::ref( flag ) );
-//      t.join();
-
-//      std::cout << "Flag: " << std::boolalpha << flag << " int i: " << i << std::endl;
-//      return 0;
-// }
-
-// int main( int argc, char** argv )
-// {
-//      // auto start = std::chrono::high_resolution_clock::now();
-
-//      // for ( int i = 1; i < 100; ++i)
-//      // {
-//      //      auto now = std::chrono::high_resolution_clock::now();
-
-//      //      auto int_ms = std::chrono::duration_cast<std::chrono::milliseconds>( now - start ).count();
-
-//      //      std::cout << int_ms << " ms" << std::endl;
-//      //      // now.
-//      //      std::this_thread::sleep_until( std::chrono::round<std::chrono::milliseconds>( now + std::chrono::milliseconds( 200 ) )  );
-//      //      // ft_usleep( 200 );
-//      //      // superSleep( start, std::chrono::milliseconds( 200 * i ) );
-//      //      // usleep( 200000 );
-//      // }
-
-//      int i = 5;
-
-//      A a( i );
-//      std::thread t( &A::DoSum, &a );
-//      t.join();
-
-//      std::cout << i << std::endl;
-
-//      std::cout << "qq" << std::endl;
-
-//      return 0;
-// }
-

@@ -4,6 +4,7 @@
 #include <mutex>
 #include <memory>
 #include <iostream>
+#include <chrono>
 
 class Printer
 {
@@ -23,14 +24,18 @@ public:
      //      }
      // }
 
-     void Print( const int& philo_num, const int& time, const std::string& message )
+     void Print( const int& philo_num,
+                 const std::chrono::high_resolution_clock::time_point& time, 
+                 const std::string& message )
      {
           if ( !( *should_print_ ) )
           {
                return ;
           }
           std::lock_guard<std::mutex> lk( *print_mutex_ );
-          std::cout << message << std::endl;
+          std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::high_resolution_clock::now() - time ).count() 
+          << " " << philo_num << " " << message << std::endl;
      }
 
      void Stop()
